@@ -42,6 +42,12 @@ interface SubmitDialogResponse {
   data: SubmitDialogResponseData;
 }
 
+interface MessageResponse {
+  type: string;
+  data: SlashCommandData;
+  text: string;
+}
+
 // Subscriber types from NIS API
 interface NisSubscriber {
   subscriber_id: number;
@@ -150,11 +156,20 @@ app.post('/slash', async (c) => {
     }
   }
 
-  // If no subscriber found, use default option
+  // If no subscriber found, return MESSAGE response
   if (subscriberOptions.length === 0) {
-    subscriberOptions = [
-      { label: 'Jl. Sei ... - Dedicate...', value: '14414' }
-    ];
+    const response: MessageResponse = {
+      type: 'MESSAGE',
+      data: {
+        command: data.command,
+        inbox_id: data.inbox_id,
+        agent_email: data.agent_email,
+        channel_id: data.channel_id,
+        customer_phone_number: data.customer_phone_number
+      },
+      text: 'no subscriber found'
+    };
+    return c.json(response);
   }
 
   // Build the response based on /tts command
