@@ -97,13 +97,13 @@ function truncateLabel(str: string, maxLength: number = 7): string {
 }
 
 // Environment configuration - must be set via environment variables
-const NIS_API_URL = process.env.NIS_API_URL;
+const NIS_SUBSCRIBER_API_URL = process.env.NIS_SUBSCRIBER_API_URL;
 const NIS_TICKET_API_URL = process.env.NIS_TICKET_API_URL;
 const NIS_API_TOKEN = process.env.NIS_API_TOKEN;
 
 // Validate required environment variables
-if (!NIS_API_URL) {
-  console.error('Error: NIS_API_URL environment variable is not set');
+if (!NIS_SUBSCRIBER_API_URL) {
+  console.error('Error: NIS_SUBSCRIBER_API_URL environment variable is not set');
 }
 if (!NIS_TICKET_API_URL) {
   console.error('Error: NIS_TICKET_API_URL environment variable is not set');
@@ -117,7 +117,7 @@ if (!NIS_API_TOKEN) {
  */
 async function fetchSubscriber(phone: string): Promise<NisApiResponse | null> {
   try {
-    const url = `${NIS_API_URL}?phone=${encodeURIComponent(phone)}`;
+    const url = `${NIS_SUBSCRIBER_API_URL}?phone=${encodeURIComponent(phone)}`;
     const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
