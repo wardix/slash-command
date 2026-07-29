@@ -42,8 +42,8 @@ interface SubmitDialogResponse {
   data: SubmitDialogResponseData;
 }
 
-// Subscriber types from transit API
-interface TransitSubscriber {
+// Subscriber types from NIS API
+interface NisSubscriber {
   subscriber_id: number;
   subscriber_name: string;
   domain: string;
@@ -51,8 +51,8 @@ interface TransitSubscriber {
   installation_address: string;
 }
 
-interface TransitApiResponse {
-  results: TransitSubscriber[];
+interface NisApiResponse {
+  results: NisSubscriber[];
 }
 
 // Helper function to truncate string if longer than 10 characters
@@ -78,7 +78,7 @@ if (!NIS_API_TOKEN) {
 /**
  * Fetch subscriber data from NIS API based on phone number
  */
-async function fetchSubscriber(phone: string): Promise<TransitApiResponse | null> {
+async function fetchSubscriber(phone: string): Promise<NisApiResponse | null> {
   try {
     const url = `${NIS_API_URL}?phone=${encodeURIComponent(phone)}`;
     const response = await fetch(url, {
@@ -113,7 +113,7 @@ app.post('/slash', async (c) => {
 
   const data = body.data;
 
-  // Fetch subscriber data from transit API
+  // Fetch subscriber data from NIS API
   let subscriberOptions: ParameterOption[] = [];
   let subjectValue = '';
   let commentValue = '';
@@ -123,7 +123,7 @@ app.post('/slash', async (c) => {
 
     if (subscriberData && subscriberData.results.length > 0) {
       // Helper function to generate label based on rules
-      const getLabel = (sub: TransitSubscriber): string => {
+      const getLabel = (sub: NisSubscriber): string => {
         let servicePart = sub.service;
         let detailPart = '';
 
