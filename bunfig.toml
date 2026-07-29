@@ -1,0 +1,5 @@
+[run]
+spawn = true
+
+[server]
+port = 3000

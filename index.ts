@@ -1,0 +1,226 @@
+import { Hono } from 'hono';
+
+// Type definitions
+interface SlashCommandData {
+  command: string;
+  inbox_id: number;
+  agent_email: string;
+  channel_id: string;
+  customer_phone_number: string;
+}
+
+interface SubmitDialogRequest {
+  type: string;
+  data: SlashCommandData;
+}
+
+interface ParameterOption {
+  label: string;
+  value: string;
+}
+
+interface Parameter {
+  tag: 'select' | 'input' | 'textarea';
+  name: string;
+  required?: boolean | string;
+  options?: ParameterOption[];
+  type?: string; // for input fields
+  value?: string;
+  placeholder?: string;
+}
+
+interface Action {
+  parameters: Parameter[];
+}
+
+interface SubmitDialogResponseData extends SlashCommandData {
+  action: Action;
+}
+
+interface SubmitDialogResponse {
+  type: string;
+  data: SubmitDialogResponseData;
+}
+
+// Subscriber types from transit API
+interface TransitSubscriber {
+  subscriber_id: number;
+  subscriber_name: string;
+  domain: string;
+  service: string;
+  installation_address: string;
+}
+
+interface TransitApiResponse {
+  results: TransitSubscriber[];
+}
+
+// Helper function to truncate string if longer than 10 characters
+function truncateLabel(str: string, maxLength: number = 7): string {
+  if (str.length > maxLength) {
+    return str.substring(0, maxLength) + '...';
+  }
+  return str;
+}
+
+// Environment configuration - must be set via environment variables
+const NIS_API_URL = process.env.NIS_API_URL;
+const NIS_API_TOKEN = process.env.NIS_API_TOKEN;
+
+// Validate required environment variables
+if (!NIS_API_URL) {
+  console.error('Error: NIS_API_URL environment variable is not set');
+}
+if (!NIS_API_TOKEN) {
+  console.error('Error: NIS_API_TOKEN environment variable is not set');
+}
+
+/**
+ * Fetch subscriber data from NIS API based on phone number
+ */
+async function fetchSubscriber(phone: string): Promise<TransitApiResponse | null> {
+  try {
+    const url = `${NIS_API_URL}?phone=${encodeURIComponent(phone)}`;
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${NIS_API_TOKEN}`
+      }
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch subscriber:', response.status);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching subscriber:', error);
+    return null;
+  }
+}
+
+const app = new Hono();
+
+// POST /slash endpoint
+app.post('/slash', async (c) => {
+  const body = await c.req.json();
+
+  // Validate request type
+  if (body.type !== 'SLASH_COMMAND') {
+    return c.json({ error: 'Invalid request type' }, 400);
+  }
+
+  const data = body.data;
+
+  // Fetch subscriber data from transit API
+  let subscriberOptions: ParameterOption[] = [];
+  let subjectValue = '';
+  let commentValue = '';
+
+  if (data.customer_phone_number) {
+    const subscriberData = await fetchSubscriber(data.customer_phone_number);
+
+    if (subscriberData && subscriberData.results.length > 0) {
+      // Helper function to generate label based on rules
+      const getLabel = (sub: TransitSubscriber): string => {
+        let servicePart = sub.service;
+        let detailPart = '';
+
+        if (sub.installation_address && sub.installation_address.trim() !== '') {
+          // If installation address exists, use it as detail
+          detailPart = sub.installation_address;
+        } else if (sub.domain && sub.domain.trim() !== '') {
+          // Otherwise, if domain exists, use it as detail
+          detailPart = sub.domain;
+        }
+
+        // Truncate parts longer than 10 characters
+        servicePart = truncateLabel(servicePart);
+        detailPart = detailPart ? ` - ${truncateLabel(detailPart)}` : '';
+
+        return `${servicePart}${detailPart}`;
+      };
+
+      // Create options for select dropdown with all subscribers
+      subscriberOptions = subscriberData.results.map((sub) => ({
+        label: getLabel(sub),
+        value: String(sub.subscriber_id)
+      }));
+    }
+  }
+
+  // If no subscriber found, use default option
+  if (subscriberOptions.length === 0) {
+    subscriberOptions = [
+      { label: 'Jl. Sei ... - Dedicate...', value: '14414' }
+    ];
+  }
+
+  // Build the response based on /tts command
+  const response: SubmitDialogResponse = {
+    type: 'SUBMIT_DIALOG',
+    data: {
+      command: data.command,
+      inbox_id: data.inbox_id,
+      agent_email: data.agent_email,
+      channel_id: data.channel_id,
+      customer_phone_number: data.customer_phone_number,
+      action: {
+        parameters: [
+          {
+            tag: 'select',
+            name: 'subscriber',
+            required: true,
+            options: subscriberOptions
+          },
+          {
+            tag: 'select',
+            name: 'type',
+            required: true,
+            options: [
+              { label: 'Request', value: '1' },
+              { label: 'Incident', value: '2' },
+              { label: 'Eskalasi', value: '10' }
+            ]
+          },
+          {
+            tag: 'select',
+            name: 'status',
+            required: true,
+            options: [
+              { label: 'Open', value: 'Open' },
+              { label: 'Solved', value: 'Call' }
+            ]
+          },
+          {
+            tag: 'input',
+            type: 'text',
+            name: 'subject',
+            value: subjectValue,
+            placeholder: 'tidak bisa internet',
+            required: true
+          },
+          {
+            tag: 'textarea',
+            name: 'comment',
+            value: commentValue,
+            placeholder: '- pandu customer reboot ONT\n- lampu indikator ONT merah menyala',
+            required: true
+          }
+        ]
+      }
+    }
+  };
+
+  return c.json(response);
+});
+
+// Get port from environment variable or use default
+const PORT = parseInt(process.env.PORT || process.env.SERVER_PORT || '3000', 10);
+
+// Export for Bun server
+export default {
+  port: PORT,
+  fetch: app.fetch
+};

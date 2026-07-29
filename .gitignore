@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Bun
+.bun-cache/
+.bun.lock
+
+# Environment files (keep .env.example)
+.env
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
