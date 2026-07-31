@@ -301,61 +301,60 @@ app.post('/slash', async (c) => {
   }
 
   // Build the response based on /tts command
-  const response: SubmitDialogResponse = {
+  const response = {
     type: 'SUBMIT_DIALOG',
     data: {
       command: data.command,
       inbox_id: data.inbox_id,
       agent_email: data.agent_email,
       channel_id: data.channel_id,
-      customer_phone_number: data.customer_phone_number,
-      action: {
-        parameters: [
-          {
-            tag: 'select',
-            name: 'subscriber',
-            required: true,
-            options: subscriberOptions
-          },
-          {
-            tag: 'select',
-            name: 'type',
-            required: true,
-            options: [
-              { label: 'Request', value: '1' },
-              { label: 'Incident', value: '2' },
-              { label: 'Eskalasi', value: '10' }
-            ]
-          },
-          {
-            tag: 'select',
-            name: 'status',
-            required: true,
-            options: [
-              { label: 'Open', value: 'Open' },
-              { label: 'Solved', value: 'Call' }
-            ]
-          },
-          {
-            tag: 'input',
-            type: 'text',
-            name: 'subject',
-            value: subjectValue,
-            placeholder: 'tidak bisa internet',
-            required: true
-          },
-          {
-            tag: 'textarea',
-            name: 'comment',
-            value: commentValue,
-            placeholder: '- pandu customer reboot ONT\n- lampu indikator ONT merah menyala',
-            required: true
-          }
-        ]
-      }
+      customer_phone_number: data.customer_phone_number
+    },
+    action: {
+      parameters: [
+        {
+          tag: 'select',
+          name: 'subscriber',
+          required: true,
+          options: subscriberOptions
+        },
+        {
+          tag: 'select',
+          name: 'type',
+          required: true,
+          options: [
+            { label: 'Request', value: '1' },
+            { label: 'Incident', value: '2' },
+            { label: 'Eskalasi', value: '10' }
+          ]
+        },
+        {
+          tag: 'select',
+          name: 'status',
+          required: true,
+          options: [
+            { label: 'Open', value: 'Open' },
+            { label: 'Solved', value: 'Call' }
+          ]
+        },
+        {
+          tag: 'input',
+          type: 'text',
+          name: 'subject',
+          value: subjectValue,
+          placeholder: 'tidak bisa internet',
+          required: true
+        },
+        {
+          tag: 'textarea',
+          name: 'comment',
+          value: commentValue,
+          placeholder: '- pandu customer reboot ONT\n- lampu indikator ONT merah menyala',
+          required: true
+        }
+      ]
     }
   };
-
   return c.json(response);
 });
 
