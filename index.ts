@@ -101,6 +101,9 @@ const NIS_SUBSCRIBER_API_URL = process.env.NIS_SUBSCRIBER_API_URL;
 const NIS_TICKET_API_URL = process.env.NIS_TICKET_API_URL;
 const NIS_API_TOKEN = process.env.NIS_API_TOKEN;
 
+// Response message for /reg command (read from env var)
+const REG_RESPONSE_MESSAGE = process.env.REG_RESPONSE_MESSAGE || 'Registrasi berhasil';
+
 // Validate required environment variables
 if (!NIS_SUBSCRIBER_API_URL) {
   console.error('Error: NIS_SUBSCRIBER_API_URL environment variable is not set');
@@ -228,7 +231,23 @@ app.post('/slash', async (c) => {
 
   const data = body.data;
 
-  // Fetch subscriber data from NIS API
+  // Handle /reg command - return simple MESSAGE response
+  if (data.command === '/reg') {
+    const response: MessageResponse = {
+      type: 'MESSAGE',
+      data: {
+        command: data.command,
+        inbox_id: data.inbox_id,
+        agent_email: data.agent_email,
+        channel_id: data.channel_id,
+        customer_phone_number: data.customer_phone_number
+      },
+      text: REG_RESPONSE_MESSAGE
+    };
+    return c.json(response);
+  }
+
+  // Fetch subscriber data from NIS API for /tts and other commands
   let subscriberOptions: ParameterOption[] = [];
   let subjectValue = '';
   let commentValue = '';
