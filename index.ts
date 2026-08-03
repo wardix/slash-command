@@ -109,8 +109,6 @@ const NIS_TICKET_API_URL = process.env.NIS_TICKET_API_URL;
 const NIS_API_TOKEN = process.env.NIS_API_TOKEN;
 const NIS_EMPLOYEE_API_URL = process.env.NIS_EMPLOYEE_API_URL;
 
-// Response message for /reg command (read from env var)
-const REG_RESPONSE_MESSAGE = process.env.REG_RESPONSE_MESSAGE || 'Registrasi berhasil';
 
 // /regxurl command configuration
 const REGXURL_BASE_URL = process.env.REGXURL_BASE_URL;
@@ -294,21 +292,6 @@ app.post('/slash', async (c) => {
 
   const data = body.data;
 
-  // Handle /reg command - return simple MESSAGE response
-  if (data.command === '/reg') {
-    const response: MessageResponse = {
-      type: 'MESSAGE',
-      data: {
-        command: data.command,
-        inbox_id: data.inbox_id,
-        agent_email: data.agent_email,
-        channel_id: data.channel_id,
-        customer_phone_number: data.customer_phone_number
-      },
-      text: REG_RESPONSE_MESSAGE
-    };
-    return c.json(response);
-  }
 
   // Handle /regxurl command - return MESSAGE response with registration URL
   if (data.command === '/regxurl') {
