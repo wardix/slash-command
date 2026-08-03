@@ -88,6 +88,13 @@ interface NisApiResponse {
   results: NisSubscriber[];
 }
 
+// Employee type from NIS Employee API
+interface NisEmployee {
+  employee_id: string;
+  name: string;
+  email: string;
+}
+
 // Helper function to truncate string if longer than 10 characters
 function truncateLabel(str: string, maxLength: number = 7): string {
   if (str.length > maxLength) {
@@ -100,9 +107,27 @@ function truncateLabel(str: string, maxLength: number = 7): string {
 const NIS_SUBSCRIBER_API_URL = process.env.NIS_SUBSCRIBER_API_URL;
 const NIS_TICKET_API_URL = process.env.NIS_TICKET_API_URL;
 const NIS_API_TOKEN = process.env.NIS_API_TOKEN;
+const NIS_EMPLOYEE_API_URL = process.env.NIS_EMPLOYEE_API_URL;
 
 // Response message for /reg command (read from env var)
 const REG_RESPONSE_MESSAGE = process.env.REG_RESPONSE_MESSAGE || 'Registrasi berhasil';
+
+// /regxurl command configuration
+const REGXURL_BASE_URL = process.env.REGXURL_BASE_URL;
+
+// Mapping agent_email -> employee id, stored as JSON string in env var
+// Example: {"wardi@nusa.net.id":"12345","other@nusa.net.id":"67890"}
+let REGXURL_AGENT_EID_MAP: Record<string, string> = {};
+try {
+  const rawMap = process.env.REGXURL_AGENT_EID_MAP;
+  if (rawMap) {
+    REGXURL_AGENT_EID_MAP = JSON.parse(rawMap);
+  } else {
+    console.error('Warning: REGXURL_AGENT_EID_MAP environment variable is not set');
+  }
+} catch {
+  console.error('Error: REGXURL_AGENT_EID_MAP is not valid JSON');
+}
 
 // Validate required environment variables
 if (!NIS_SUBSCRIBER_API_URL) {
@@ -113,6 +138,12 @@ if (!NIS_TICKET_API_URL) {
 }
 if (!NIS_API_TOKEN) {
   console.error('Error: NIS_API_TOKEN environment variable is not set');
+}
+if (!REGXURL_BASE_URL) {
+  console.error('Error: REGXURL_BASE_URL environment variable is not set');
+}
+if (!NIS_EMPLOYEE_API_URL) {
+  console.error('Error: NIS_EMPLOYEE_API_URL environment variable is not set');
 }
 
 /**
@@ -136,6 +167,38 @@ async function fetchSubscriber(phone: string): Promise<NisApiResponse | null> {
     return await response.json();
   } catch (error) {
     console.error('Error fetching subscriber:', error);
+    return null;
+  }
+}
+
+/**
+ * Fetch employee data from NIS API based on email
+ * Returns employee_id string or null if not found / API error
+ */
+async function fetchEmployeeIdByEmail(email: string): Promise<string | null> {
+  if (!NIS_EMPLOYEE_API_URL) {
+    console.error('Error: NIS_EMPLOYEE_API_URL is not set');
+    return null;
+  }
+
+  try {
+    const url = `${NIS_EMPLOYEE_API_URL}?email=${encodeURIComponent(email)}`;
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${NIS_API_TOKEN}`
+      }
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch employee:', response.status);
+      return null;
+    }
+
+    const data: NisEmployee = await response.json();
+    return data.employee_id || null;
+  } catch (error) {
+    console.error('Error fetching employee:', error);
     return null;
   }
 }
@@ -243,6 +306,50 @@ app.post('/slash', async (c) => {
         customer_phone_number: data.customer_phone_number
       },
       text: REG_RESPONSE_MESSAGE
+    };
+    return c.json(response);
+  }
+
+  // Handle /regxurl command - return MESSAGE response with registration URL
+  if (data.command === '/regxurl') {
+    if (!REGXURL_BASE_URL) {
+      const errResponse: MessageResponse = {
+        type: 'MESSAGE',
+        data: {
+          command: data.command,
+          inbox_id: data.inbox_id,
+          agent_email: data.agent_email,
+          channel_id: data.channel_id,
+          customer_phone_number: data.customer_phone_number
+        },
+        text: 'Gagal membuat URL: REGXURL_BASE_URL belum dikonfigurasi'
+      };
+      return c.json(errResponse);
+    }
+
+    // Resolve employee ID: first from static map, then fallback to NIS Employee API
+    let eid = REGXURL_AGENT_EID_MAP[data.agent_email] || '';
+    if (!eid) {
+      console.error(`Warning: No employee ID mapping found for agent email: ${data.agent_email}, trying NIS Employee API`);
+      const fetchedEid = await fetchEmployeeIdByEmail(data.agent_email);
+      eid = fetchedEid || '';
+      if (!eid) {
+        console.error(`Warning: Employee ID not found via API for email: ${data.agent_email}`);
+      }
+    }
+
+    const url = `${REGXURL_BASE_URL}?phone=${encodeURIComponent(data.customer_phone_number)}&eid=${encodeURIComponent(eid)}`;
+
+    const response: MessageResponse = {
+      type: 'MESSAGE',
+      data: {
+        command: data.command,
+        inbox_id: data.inbox_id,
+        agent_email: data.agent_email,
+        channel_id: data.channel_id,
+        customer_phone_number: data.customer_phone_number
+      },
+      text: url
     };
     return c.json(response);
   }
