@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import './src/config.ts'; // load env validation at startup
-import { handleSubmitDialog } from './src/handlers/submitDialog.ts';
-import { handleRegxurl } from './src/handlers/regxurl.ts';
-import { handleTts } from './src/handlers/tts.ts';
+import './config.ts'; // load env validation at startup
+import { handleSubmitDialog } from './handlers/submitDialog.ts';
+import { handleRegxurl } from './handlers/regxurl.ts';
+import { handleTts } from './handlers/tts.ts';
 
 const app = new Hono();
 
